@@ -917,7 +917,14 @@ class GCSFileSystem(object):
 
     def __setstate__(self, state):
         self.__dict__.update(state)
-        self.connect(self.token)
+        if (self._singleton[0] is not None and
+                state['method'] in ['google_default', 'cloud', 'anon']):
+            self.__dict__.update(self._singleton[0].__dict__)
+        elif (self._singleton[0] is not None and state['method'] == 'cache' and
+              (project, access) in self.tokens):
+            self.__dict__.update(self._singleton[0].__dict__)
+        else:
+            self.connect(self.token)
 
 
 GCSFileSystem.load_tokens()
