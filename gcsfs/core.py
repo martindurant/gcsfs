@@ -37,6 +37,8 @@ from .utils import HttpError, RateLimitException, is_retriable, read_block
 PY2 = sys.version_info.major == 2
 
 logger = logging.getLogger(__name__)
+logger.setLevel("INFO")
+logging.basicConfig()
 
 # Allow optional tracing of call locations for api calls.
 # Disabled by default to avoid *massive* test logs.
@@ -755,7 +757,11 @@ class GCSFileSystem(fsspec.AbstractFileSystem):
                 if key == 'md5':
                     md = b64decode(val)
                     assert md5(r.content).digest() == md, "Checksum failure"
-        return r.content
+        data = r.content
+        if len(data) != self.size(path):
+            logger.info('cat: %s got %s bytes out of %s'
+                        '' % (path, len(data), self.size(path)))
+        return data
 
     def getxattr(self, path, attr):
         """Get user-defined metadata attribute"""
@@ -1073,10 +1079,11 @@ class GCSFile(fsspec.spec.AbstractBufferedFile):
             r = self.gcsfs._call('GET', self.details['mediaLink'],
                                  headers=head)
             data = r.content
+            request = (end or self.size) - (start or 0)
             logger.info(
                 'Fetch: %s of size %s, (%s-%s), %s requested, %s got'
                 '' % (
-                    self.path, self.size, start, end, end - start, len(data)))
+                    self.path, self.size, start, end, request, len(data)))
             return data
         except RuntimeError as e:
             if 'not satisfiable' in str(e):
