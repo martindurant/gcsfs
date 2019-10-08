@@ -460,10 +460,13 @@ class GCSFileSystem(fsspec.AbstractFileSystem):
                 if retry > 0:
                     time.sleep(min(random.random() + 2**(retry-1), 32))
                 r = self.session.request(method, path,
-                                         params=kwargs, json=json, headers=headers, data=data, timeout=self.requests_timeout)
+                                         params=kwargs, json=json,
+                                         headers=headers, data=data,
+                                         timeout=self.requests_timeout)
                 validate_response(r, path)
                 break
-            except (HttpError, RequestException, RateLimitException, GoogleAuthError) as e:
+            except (HttpError, RequestException, RateLimitException,
+                    GoogleAuthError) as e:
                 if retry == self.retries - 1:
                     logger.exception("_call out of retries on exception: %s", e)
                     raise e
@@ -1070,6 +1073,10 @@ class GCSFile(fsspec.spec.AbstractBufferedFile):
             r = self.gcsfs._call('GET', self.details['mediaLink'],
                                  headers=head)
             data = r.content
+            logger.info(
+                'Fetch: %s of size %s, (%s-%s), %s requested, %s got'
+                '' % (
+                    self.path, self.size, start, end, end - start, len(data)))
             return data
         except RuntimeError as e:
             if 'not satisfiable' in str(e):
